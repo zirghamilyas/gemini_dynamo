@@ -1,0 +1,11 @@
+streamlit
+langchain
+langchain-community
+langchain-google-vertexai
+pypdf
+youtube-transcript-api
+pytube
+tiktoken
+chromadb
+fastapi
+uvicorn

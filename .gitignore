@@ -1,0 +1,10 @@
+.env/
+backend/.env/
+__pycache__/
+application_key.json
+application_credentials.json
+
+*_solution.py
+
+*.json
+backend/test.py
