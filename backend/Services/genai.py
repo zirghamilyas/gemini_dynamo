@@ -7,10 +7,6 @@ from google.oauth2.service_account import Credentials
 import sys, os
 sys.path.append(os.path.abspath('../../'))
 
-
-import google.generativeai as genai
-
-
 class YoutubeProcessor:
     def __init__(self):
         self.text_splitter = RecursiveCharacterTextSplitter(
@@ -53,7 +49,7 @@ class GeminiProcessor:
     
 
 if __name__=='__main__':
-    credential_file_name = 'gemini-dynamo-423808-01df1a18360e'
+    credential_file_name = 'gemini-dynamo-credentials'
     model_name ="gemini-1.5-pro-001"
     project_id = 'gemini-dynamo-423808'
     gemini_processor = GeminiProcessor(model_name = model_name, 

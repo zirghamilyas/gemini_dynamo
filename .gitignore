@@ -6,5 +6,5 @@ application_credentials.json
 
 *_solution.py
 
-*.json
+gemini-dynamo-credentials.json
 backend/test.py
