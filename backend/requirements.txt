@@ -9,3 +9,4 @@ tiktoken
 chromadb
 fastapi
 uvicorn
+tqdm
