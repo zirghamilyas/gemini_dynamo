@@ -5,6 +5,7 @@ from vertexai.generative_models import GenerativeModel
 from langchain.chains.summarize import load_summarize_chain
 from langchain.prompts import PromptTemplate
 from tqdm import tqdm
+import json
 
 import logging
 logger = logging.getLogger(__name__)
@@ -33,12 +34,12 @@ class GeminiProcessor:
     def count_total_tokens(self, docs:list):
         temp_model = GenerativeModel('gemini-1.0-pro')
         total = 0
-        # logger.info('Counting total tokens...')
-        print('Counting total tokens...')
+        # logging.info('Counting total tokens...')
+        print('Counting total billable characters...')
 
         from tqdm import tqdm
         for doc in tqdm(docs):
-            total += temp_model.count_tokens(doc.page_content).total_tokens
+            total += temp_model.count_tokens(doc.page_content).total_billable_characters
             return total
 
     
@@ -63,23 +64,39 @@ class YoutubeProcessor:
         length = result[0].metadata['length']
         title = result[0].metadata['title']
         total_size = len(result)
+        total_billable_characters = self.GeminiProcessor.count_total_tokens(result)
 
         if verbose:
-            print(f"author: {author}\n length: {length}\n title: {title}\n total_size: {total_size}")
+            print(f"author: {author}\n length: {length}\n title: {title}\n total_size: {total_size}\n total_billable_characters: {total_billable_characters}")
 
         return result
     
-    def find_key_concepts(self, documents : list, group_size: int = 2):
+    def find_key_concepts(self, documents : list, sample_size: int = 0, verbose = False):
         # Iterate through all documents of group size N and find key concepts
-        if group_size > len(documents):
+        if sample_size > len(documents):
             raise ValueError("Group size is larger than the number of documents")
+        
+        # optimized sample size for no input i.e. sample_size = 0
+        if sample_size == 0:
+            sample_size = len(documents) // 5
+            if verbose:
+                print(f"Sample size is not provided. Using sample size: {sample_size}, so to get 5 documents per group")
         # finding number of docs in each group
-        num_docs_per_group = len(documents) // group_size + (len(documents) % group_size > 0)
+        num_docs_per_group = len(documents) // sample_size + (len(documents) % sample_size > 0)
+
+        # check threshold for response quality
+        if num_docs_per_group >= 10: 
+           raise ValueError("Sample size is small and it will reduce the output quality significantly because the number of documents per group is more than 7. Please try a smaller sample_size")
+        elif num_docs_per_group < 3:
+            raise ValueError("Sample size is large and it will reduce the output quality significantly because the number of documents per group is less than 3. Please try a larger sample_size")
+        
+        print(f'Num of doc per group {num_docs_per_group}')
 
         # split the document in chunks of size num_docs_per_group
         groups = [documents[i:i+num_docs_per_group] for i in range (0,len(documents), num_docs_per_group)]
 
         batch_concepts = []
+        total_batch_cost = 0
 
         # logger.info('Finding key concepts...')
         print('Finding key concepts...')
@@ -96,8 +113,9 @@ class YoutubeProcessor:
                 Find and define key concepts or terms found in the text:
                 {text}
 
-                Respond in the following format as a string separating each concept with a comma:
-                "concept": "definition"
+                Respond as a JSON object with the following format:
+                {{"concept": "definition", "concept": "definition", ...}}
+                Make sure to separate each concept and definition with a comma.
                 """,
                 input_variable = ['text']
             )
@@ -105,14 +123,62 @@ class YoutubeProcessor:
             # create chain
             chain = prompt | self.GeminiProcessor.model
 
-            # Run chain
-            concept = chain.invoke({'text': group_content})
-            batch_concepts.append(concept)
+            error = 0
+            counter = 0
+            while error == 0:
+                counter += 1
+                # Run chain
+                output_concept = chain.invoke({'text': group_content})
+                
+                try:
+                    # Convert the JSON String to a dictionary
+                    processed_concepts = json.loads(output_concept)
+                    error = 1
+                except json.JSONDecodeError:
+                    print("Failed to decode output_concept into JSON.")
+                    continue  # Skip this iteration if JSON decoding fails
+            
+            dict = {}                             
+            for key, value in processed_concepts.items():
+                dict = {'term': key, 'definition': value}
+                batch_concepts.append(dict)
+
+            # Post processing Observation
+            if verbose:
+                total_input_char = len(group_content)
+                total_input_cost = (total_input_char/1000) * 0.000125 * counter
+
+                print(f' Running chain on {len(group)} documents')
+                print(f'Total input characters: {total_input_char}')
+                print(f'Total input cost: {total_input_cost}')
+
+                # Output cost
+                total_output_char = len(output_concept)
+                total_output_cost = (total_output_char/1000) * 0.000375 * counter
+
+                print(f'Total output characters: {total_output_char}')
+                print(f'Total output cost: {total_output_cost}')
+
+                # Current batch cost
+                batch_cost = total_input_cost + total_output_cost
+                print(f'Current batch cost: {batch_cost}')
+            else:
+                total_input_char = len(group_content)
+                total_input_cost = (total_input_char/1000) * 0.000125 * counter
+                total_output_char = len(output_concept)
+                total_output_cost = (total_output_char/1000) * 0.000375 * counter
+
+                batch_cost = total_input_cost + total_output_cost
+            
+            total_batch_cost += batch_cost
+
+        # Converting JSON strings into pthon dictionary
+        # processed_concepts = [concept for concept in batch_concepts]
+
         
+        # Total analysis cost
+        print(f'Total analysis cost in dollars: ${total_batch_cost}')
         return batch_concepts
-
-    
-
 
     
 

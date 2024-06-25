@@ -30,6 +30,6 @@ def analyze_video(request : VideoAnalysisRequest):
     # summary = genai_processor.generate_document_summary(documents = result, 
                                                         # verbose = True)
     # finding key concepts
-    key_concepts = processor.find_key_concepts(result, group_size=2)
+    key_concepts = processor.find_key_concepts(result, verbose=False)
     
     return {'key_concepts' : key_concepts}
