@@ -16,14 +16,16 @@ function App() {
       const response = await axios.post("http://localhost:8000/analyze_video", {
         youtube_link: youtubeLink,
       });
+      console.log(response);
       
       const data = response.data;
       if (data.key_concepts && Array.isArray(data.key_concepts)) {
         const transformedConcepts = data.key_concepts.map(concept => {
-          const term = Object.keys(concept)[0];
-          const definition = concept[term];
+          const term = concept.term;
+          const definition = concept.definition;
           return { term, definition }; 
         });
+        console.log("Transformed concepts: ", transformedConcepts);
         setKeyConcepts(transformedConcepts);
       }
       else {
