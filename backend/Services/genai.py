@@ -77,10 +77,13 @@ class YoutubeProcessor:
             raise ValueError("Group size is larger than the number of documents")
         
         # optimized sample size for no input i.e. sample_size = 0
-        if sample_size == 0:
+        if sample_size == 0 and len(documents) >= 5:
             sample_size = len(documents) // 5
             if verbose:
                 print(f"Sample size is not provided. Using sample size: {sample_size}, so to get 5 documents per group")
+        else:
+            sample_size = 1
+
         # finding number of docs in each group
         num_docs_per_group = len(documents) // sample_size + (len(documents) % sample_size > 0)
 
@@ -112,10 +115,10 @@ class YoutubeProcessor:
                 template = """
                 Find and define key concepts or terms found in the text:
                 {text}
-
+                
+                Make sure to separate each concept and definition with a comma.
                 Respond as a JSON object with the following format:
                 {{"concept": "definition", "concept": "definition", ...}}
-                Make sure to separate each concept and definition with a comma.
                 """,
                 input_variable = ['text']
             )
@@ -134,8 +137,10 @@ class YoutubeProcessor:
                     # Convert the JSON String to a dictionary
                     processed_concepts = json.loads(output_concept)
                     error = 1
+                    
                 except json.JSONDecodeError:
                     print("Failed to decode output_concept into JSON.")
+                    # print(f'Generated response: \n {output_concept}')
                     continue  # Skip this iteration if JSON decoding fails
             
             dict = {}                             

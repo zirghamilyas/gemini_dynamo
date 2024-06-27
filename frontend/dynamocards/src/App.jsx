@@ -13,6 +13,7 @@ function App() {
   
   const sendLink = async () => {
     try {
+      setKeyConcepts([]);
       const response = await axios.post("http://localhost:8000/analyze_video", {
         youtube_link: youtubeLink,
       });
